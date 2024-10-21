@@ -1,0 +1,6 @@
+resources.qrc
+CMakeLists.*
+*Utility.h
+build/
+Sounds/
+Sprites/
