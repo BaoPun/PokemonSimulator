@@ -39,6 +39,8 @@ Display::Display(int width, int height, int min_level, int max_level, QString mu
     // Will always be nullptr except for when the display is a battle scene
     this->player_pokemon_sprite = nullptr;
     this->opponent_pokemon_sprite = nullptr;
+    this->player_hp = nullptr;
+    this->opponent_hp = nullptr;
 
     // Add white background
     this->scene->setBackgroundBrush(Qt::white);
@@ -244,6 +246,16 @@ void Display::send_player_pokemon_to_battle(Pokemon pokemon){
     this->player_pokemon = pokemon;
     this->player_pokemon_sprite = new TileSprite(-1, 176, 448, QString("./PokemonHomeImages/%1.png").arg(pokemon.get_dex_id()), 144, 144);
     this->add_to_scene(this->player_pokemon_sprite);
+
+    // TODO: add health bar above the sprite (QProgressBar)
+    /*QProgressBar* health_bar = new QProgressBar();
+    health_bar->setMaximum(this->player_pokemon.get_total(HP));
+    health_bar->setValue(this->player_pokemon.get_current_hp());
+    this->player_hp = new QGraphicsProxyWidget();
+    this->player_hp->setWidget(health_bar);
+    this->player_hp->setPos(176, 416);*/
+    this->player_hp = new HealthBar(this->player_pokemon.get_current_hp(), this->player_pokemon.get_total(HP), 176, 416);
+    this->add_to_scene(this->player_hp->get_proxy());
 }
 
 void Display::send_opponent_pokemon_to_battle(Pokemon pokemon){
@@ -251,6 +263,10 @@ void Display::send_opponent_pokemon_to_battle(Pokemon pokemon){
     this->opponent_pokemon = pokemon;
     this->opponent_pokemon_sprite = new TileSprite(-1, 576, 160, QString("./PokemonHomeImages/%1.png").arg(pokemon.get_dex_id()), 144, 144);
     this->add_to_scene(this->opponent_pokemon_sprite);
+
+    // TODO: add health bar above the sprite (QProgressBar)
+    this->opponent_hp = new HealthBar(this->opponent_pokemon.get_current_hp(), this->opponent_pokemon.get_total(HP), 576, 128);
+    this->add_to_scene(this->opponent_hp->get_proxy());
 }
 
 void Display::remove_player_pokemon_from_battle(){
@@ -258,6 +274,12 @@ void Display::remove_player_pokemon_from_battle(){
     this->player_pokemon.invalidate_pokemon();
     this->remove_from_scene(this->player_pokemon_sprite);
     delete this->player_pokemon_sprite;
+    this->player_pokemon_sprite = nullptr;
+
+    // And delete the opponent health bar as well
+    this->remove_from_scene(this->player_hp->get_proxy());
+    delete this->player_hp; qDebug() << "Nice deletion";
+    this->player_hp = nullptr;
 }
 
 void Display::remove_opponent_pokemon_from_battle(){
@@ -265,12 +287,20 @@ void Display::remove_opponent_pokemon_from_battle(){
     this->opponent_pokemon.invalidate_pokemon();
     this->remove_from_scene(this->opponent_pokemon_sprite);
     delete this->opponent_pokemon_sprite;
+    this->opponent_pokemon_sprite = nullptr;
+
+    // and delete the opponent health bar as well
+    this->remove_from_scene(this->opponent_hp->get_proxy());
+    delete this->opponent_hp;
+    this->opponent_hp = nullptr;
+
+    qDebug() << "Nice";
 }
 
 Pokemon* Display::get_random_pokemon(){
     // First, choose a random number between 1 and 100
     int random = QRandomGenerator::global()->bounded(1, 101);
-    qDebug() << "Random number:" << random;
+    //qDebug() << "Random number:" << random;
 
     // Then, iterate through the list of pokemon (minus 1) to see bounded ranges
     int low = 0, high = 0;
@@ -327,6 +357,15 @@ void Display::add_dialogs(QQueue<QString> dialogs){
     }
 }
 
+void Display::add_battle_dialogs(QQueue<QString> dialogs){
+    while(!dialogs.empty()){
+        this->dialogs.insert(this->dialogs.cbegin(), new TextButton(dialogs.last(), 1, 736, 896, 160));
+        this->scene->addItem(this->dialogs.front());
+        this->dialogs.front()->hide();
+        dialogs.pop_back();
+    }
+}
+
 void Display::remove_dialog(){
     if(!this->dialogs.isEmpty()){
         TextButton* old_dialog = this->dialogs.front();
@@ -341,11 +380,21 @@ void Display::show_dialog(){
         this->dialogs.front()->show();
 }
 
+void Display::update_player_pokemon(Pokemon p){
+    this->player_pokemon = p;
+    this->player_hp->set_current_hp(this->player_pokemon.get_current_hp());
+}
+
+void Display::update_opponent_pokemon(Pokemon p){
+    this->opponent_pokemon = p;
+    this->opponent_hp->set_current_hp(this->opponent_pokemon.get_current_hp());
+}
+
 void Display::add_move_order(vector<PokemonUsedMove> move_order){
-    this->move_order = move_order;
+    //this->move_order = move_order;
     QQueue<QString> battle_text;
-    for(int i = 0; i < this->move_order.size(); i++){
-        battle_text.enqueue(this->move_order[i].get_action_text());
+    for(int i = 0; i < /*this->*/move_order.size(); i++){
+        battle_text.enqueue(/*this->*/move_order[i].get_action_text());
     }
     this->add_dialogs(battle_text);
 }
@@ -372,12 +421,31 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                     QString text = this->dialogs.front()->get_text();
                     this->remove_dialog();
 
-                    // TODO: after removing text, make the attack happen.
-                    if(!this->move_order.empty()){
-                        //Q_EMIT perform_move(this->move_order.begin()->pokemon, this->move_order.begin()->move);
+                    // Does the player NOT have any more usable pokemon?
+                    if(text.contains("whited out")){
+                        this->view->close();
+                    }
+
+                    // Did a pokemon faint?
+                    if(text.contains(" fainted!")){
+                        // TODO: before exiting the battle, implement exp gains
+
+
+
+                        // TODO: exit the battle only if the wild pokemon is gone
+                        //       or if the player has no more usable pokemon
+                        if(this->dialogs.empty() || this->opponent_pokemon.get_current_hp() == 0){
+                            Q_EMIT exit_battle();
+                            this->dialogs.clear();
+                            //return true;
+                        }
+                    }
+
+
+                    // If the first dialog is a move being used.
+                    else if(text.contains("used")){
                         Q_EMIT perform_move();
-                        this->move_order.erase(this->move_order.begin());
-                        if(this->move_order.empty())
+                        if(this->dialogs.empty())
                             this->is_move_action = false;
                     }
 
@@ -386,9 +454,14 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                         this->dialogs.front()->show();
                     }
 
-                    // TODO: if we chose to run away, display that prompt here.
+                    // If we chose to run away, display that prompt here.
                     else if(text == "Ran away successfully!"){
+                        //this->move_order.clear();
                         Q_EMIT exit_battle();
+                        this->dialogs.clear();
+
+                        // TODO: Also clear out the sprites
+
                     }
 
                     // Otherwise, show the battle menu
@@ -415,6 +488,7 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                     else if(this->battle_button[3]->is_bold()){
                         // TODO: calculate the probability of running away
                         qDebug() << "You have ran away from the battle successfully!";
+                        //this->move_order.clear();
                         this->dialogs.append(new TextButton("Ran away successfully!", 1, 736, 896, 160));
                         this->scene->addItem(this->dialogs.back());
                         this->show_dialog();

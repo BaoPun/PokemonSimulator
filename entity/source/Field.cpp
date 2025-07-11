@@ -17,8 +17,8 @@ void Field::clear_double_field(){
 }
 
 void Field::load_single_battle(Pokemon* user, Pokemon* enemy){
-    this->ally1.load_pokemon(user);
-    this->opponent1.load_pokemon(enemy);
+    this->ally1.load_pokemon(user, 1);
+    this->opponent1.load_pokemon(enemy, 2);
 }
 
 void Field::load_ally1_move(Move* move){
@@ -39,6 +39,18 @@ void Field::load_ally1_move(Move* move){
 
 void Field::load_opponent1_move(Move* move){
     this->opponent1.load_move(move);
+
+    if(this->is_single_battle()){
+        if(move->get_target() == RANDOM_OPPONENT || move->get_target() == ALL_OPPONENTS
+            || move->get_target() == SELECTED_POKEMON || move->get_target() == OPPONENTS_FIELD
+            || move->get_target() == ALL_OTHER_POKEMON){
+            this->opponent1.target = 2;
+        }
+        else if(move->get_target() == USER_AND_ALLIES || move->get_target() == USER
+                 || move->get_target() == ENTIRE_FIELD){
+            this->opponent1.target = 1;
+        }
+    }
 }
 
 Pokemon* Field::get_ally1_pokemon(){
@@ -59,6 +71,14 @@ Move* Field::get_opponent1_move(){
 
 Move* Field::get_top_move(){
     return this->move_order.front().move;
+}
+
+int Field::get_top_move_type(){
+    return this->move_order.front().type;
+}
+
+PokemonUsedMove Field::get_top_move_order(){
+    return this->move_order.front();
 }
 
 void Field::remove_top_move(){
@@ -106,7 +126,7 @@ vector<PokemonUsedMove> Field::determine_move_order(){
 
     // Return the order.
     this->move_order = order;
-    return order;
+    return this->move_order;
 }
 
 bool Field::is_single_battle(){
@@ -115,4 +135,11 @@ bool Field::is_single_battle(){
 
 bool Field::is_double_battle(){
     return this->is_double;
+}
+
+
+
+
+int Field::num_moves_left_order(){
+    return this->move_order.size();
 }

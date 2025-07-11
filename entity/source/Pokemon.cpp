@@ -19,6 +19,7 @@ void Pokemon::calculate_total_stats(){
  */
 Pokemon::Pokemon(){
     this->dex_id = -1;
+    this->trainer_id = -1;
 }
 
 /**
@@ -162,7 +163,7 @@ int Pokemon::get_iv(Stat stat){
 }
 
 int Pokemon::get_total(Stat stat){
-    return this->total[stat];
+    return this->total[stat] * this->get_modifier(stat);
 }
 
 int Pokemon::get_num_moves_learned_by(Method method){
@@ -191,6 +192,11 @@ int Pokemon::get_probability(){
     return this->probability;
 }
 
+/**
+ * @brief Get the modifier multiplier.  By default, the modifiers are all at 0
+ * @param stat - given stat to get the modifier for
+ * @return formula (in boolean) to compute the multiplier
+ */
 double Pokemon::get_modifier(Stat stat){
     return (this->modifier[stat] >= 0) ? ((3 + this->modifier[stat]) / 3.0) : (3 / (3.0 + (-1 * this->modifier[stat])));
 }
@@ -199,7 +205,7 @@ vector<Type> Pokemon::get_types(){
     return this->types;
 }
 
-int Pokemon::get_current_hp(){
+int Pokemon::get_current_hp() const{
     return this->current_hp;
 }
 
@@ -274,9 +280,44 @@ Pokemon* Pokemon::update_owner(int trainer_id){
     return this;
 }
 
-void Pokemon::change_modifier(Stat stat, int delta){
-    if(-6 <= this->modifier[stat] + delta && this->modifier[stat] + delta <= 6)
+/**
+ * @brief Modifies a given stat by the delta, up to -6 or +6.
+ * @brief Returns True if modification was successful, or False otherwise
+ * @param stat - which stat to affect?  Cannot be HP
+ * @param delta - how much of an increase?
+ * @return True if change was successful, or False otherwise.
+ */
+bool Pokemon::change_modifier(Stat stat, int delta){
+    // HP's modifier should never be changed.
+    if(stat == HP)
+        return false;
+    if(-6 <= this->modifier[stat] + delta && this->modifier[stat] + delta <= 6){
         this->modifier[stat] += delta;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * @brief Similar to Pokemon::change_modifier, but this only checks if the change is possible.
+ * @return True if the requested delta at the given stat can happen
+ */
+bool Pokemon::can_change_modifier(Stat stat, int delta){
+    // HP's modifier should never be changed.
+    return (stat == HP ? false : this->modifier[stat] + delta <= 6 && this->modifier[stat] + delta >= -6);
+}
+
+/**
+ * @brief If a pokemon is out of battle (not in battle or switched out), then reset all modifiers to 0
+ */
+void Pokemon::reset_modifiers(){
+    this->modifier[ATK] = 0;
+    this->modifier[DEF] = 0;
+    this->modifier[SP_ATK] = 0;
+    this->modifier[SP_DEF] = 0;
+    this->modifier[SPEED] = 0;
+    this->modifier[ACCURACY] = 0;
+    this->modifier[EVASION] = 0;
 }
 
 bool Pokemon::is_move_stab(Type type){
@@ -287,8 +328,24 @@ bool Pokemon::is_move_stab(Type type){
     return false;
 }
 
+void Pokemon::taken_damage(int damage){
+    if(damage >= this->current_hp)
+        this->current_hp = 0;
+    else
+        this->current_hp -= damage;
+}
+
 void Pokemon::invalidate_pokemon(){
     this->dex_id = -1;
+}
+
+/**
+ * @brief Gain experience based on the defeated pokemon.
+ * @brief https://bulbapedia.bulbagarden.net/wiki/Experience
+ * @param defeated
+ */
+void Pokemon::gain_experience(const Pokemon& defeated){
+
 }
 
 void Pokemon::print_total_stats(){
@@ -311,18 +368,17 @@ void Pokemon::print_total_stats(){
         }
     }
 
-    qDebug() << "     HP:" << this->total[HP];
-    qDebug() << "    ATK:" << this->total[ATK];
-    qDebug() << "    DEF:" << this->total[DEF];
-    qDebug() << "  SPATK:" << this->total[SP_ATK];
-    qDebug() << "  SPDEF:" << this->total[SP_DEF];
-    qDebug() << "    SPD:" << this->total[SPEED];
+    qDebug() << "     HP:" << this->get_total(HP);
+    qDebug() << "    ATK:" << this->get_total(ATK);
+    qDebug() << "    DEF:" << this->get_total(DEF);
+    qDebug() << "  SPATK:" << this->get_total(SP_ATK);
+    qDebug() << "  SPDEF:" << this->get_total(SP_DEF);
+    qDebug() << "    SPD:" << this->get_total(SPEED);
     qDebug() << " Nature:" << this->nature.name;
     qDebug() << "    EXP:" << this->exp_gains[this->level - 1];
 
 
     qDebug() << Qt::endl;
-
 }
 
 void Pokemon::print_battle_stats(){
@@ -346,17 +402,18 @@ void Pokemon::print_battle_stats(){
 
 
     // Stats
-    qDebug() << "     HP:" << this->total[HP];
-    qDebug() << "    ATK:" << this->total[ATK];
-    qDebug() << "    DEF:" << this->total[DEF];
-    qDebug() << "  SPATK:" << this->total[SP_ATK];
-    qDebug() << "  SPDEF:" << this->total[SP_DEF];
-    qDebug() << "    SPD:" << this->total[SPEED];
+    qDebug() << "     HP:" << this->get_total(HP);
+    qDebug() << "    ATK:" << this->get_total(ATK) << "+" << this->modifier[ATK];
+    qDebug() << "    DEF:" << this->get_total(DEF) << "+" << this->modifier[DEF];
+    qDebug() << "  SPATK:" << this->get_total(SP_ATK) << "+" << this->modifier[SP_ATK];
+    qDebug() << "  SPDEF:" << this->get_total(SP_DEF) << "+" << this->modifier[SP_DEF];
+    qDebug() << "    SPD:" << this->get_total(SPEED) << "+" << this->modifier[SPEED];
     qDebug() << " Nature:" << this->nature.name;
     if(this->level < 100)
         qDebug() << "Curr XP:" << this->current_exp << "/" << this->exp_gains[this->level];
     else
         qDebug() << "Curr XP:" << this->exp_gains[99] << "/" << this->exp_gains[99];
+    qDebug() << "Current HP:" << this->current_hp << "/" << this->total[HP];
     qDebug();
 }
 

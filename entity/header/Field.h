@@ -7,14 +7,16 @@ struct PokemonUsedMove{
     Pokemon* pokemon;
     Move* move;
     int target;     // 1-4; 1=ally1, 2=opponent1, 3=ally2, 4=opponent2
+    int type;       // 1-4; 1=ally1, 2=opponent1, 3=ally2, 4=opponent2
 
     PokemonUsedMove(){
         this->pokemon = nullptr;
         this->move = nullptr;
     }
 
-    void load_pokemon(Pokemon* pokemon){
+    void load_pokemon(Pokemon* pokemon, int type){
         this->pokemon = pokemon;
+        this->type = type;
     }
 
     void load_move(Move* move){
@@ -76,6 +78,8 @@ public:
     void load_ally1_move(Move*);
     void load_opponent1_move(Move*);
 
+    //Pokemon* get_pokemon_from_target(int);
+
     Pokemon* get_ally1_pokemon();
     Move* get_ally1_move();
 
@@ -84,6 +88,8 @@ public:
 
     // Get top move.
     Move* get_top_move();
+    int get_top_move_type();
+    PokemonUsedMove get_top_move_order();
 
 
     bool is_single_battle();
@@ -94,6 +100,9 @@ public:
     void remove_top_move();
 
     // Use top move
+
+    // Get # of moves remaining from move order
+    int num_moves_left_order();
 
 
 };

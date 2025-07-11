@@ -82,7 +82,7 @@ private:
     Ailment status;
 
     // Does this pokemon belong to the player? (False by default)
-    int trainer_id = -1;
+    int trainer_id;
 
 public:
     /**
@@ -117,7 +117,7 @@ public:
     int get_probability();
     double get_modifier(Stat);
     vector<Type> get_types();
-    int get_current_hp();
+    int get_current_hp() const;
     Move& get_current_move(int);
     Ailment get_status_ailment();
     int get_num_current_moves();
@@ -131,7 +131,9 @@ public:
     Pokemon* update_owner(int);
 
     // Change the stat modifier
-    void change_modifier(Stat, int);
+    bool change_modifier(Stat, int);
+    bool can_change_modifier(Stat, int);
+    void reset_modifiers();
 
     // Move calculations
     bool is_move_stab(Type);
@@ -142,6 +144,8 @@ public:
     // Invalidate the pokemon by setting the id to -1
     void invalidate_pokemon();
 
+    // Gain experience
+    void gain_experience(const Pokemon &);
 
     // DEBUG: print stats of pokemon to make sure data came through just fine.
     void print_total_stats();

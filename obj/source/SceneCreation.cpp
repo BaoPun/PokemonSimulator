@@ -48,7 +48,7 @@ void Game::create_scene_1(int width, int height){
         }
     }
 
-    // Adding a fenced area around the house
+    // Adding a fenced area around the house (this is horizontal fence)
     // TL: (288,192); TR: (672,192); BL: (288,432); BR: (672,432)
     // No fences between (432,400) and (480,400)
     for(size_t i = 320; i <= 672; i += 32){
@@ -56,6 +56,8 @@ void Game::create_scene_1(int width, int height){
         if(!(i >= 464 && i <= 512))
             this->display.at(1)->add_to_scene(new TileSprite(8, i, 416));
     }
+
+    // Vertical fence
     for(size_t j = 256; j < 432; j += 32){
         this->display.at(1)->add_to_scene(new TileSprite(7, 288, j));
         this->display.at(1)->add_to_scene(new TileSprite(7, 704, j));

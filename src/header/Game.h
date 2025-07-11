@@ -27,6 +27,9 @@ private:
     // The game contains a Field
     Field field;
 
+    // Applying stat changes to 1 function to reduce repetitive code
+    void apply_stat_change_at(Pokemon&, Move, Stat, QQueue<QString>&);
+
     // Event filter, specifically for the button
     //bool eventFilter(QObject*, QEvent*);
 
@@ -62,7 +65,13 @@ public:
     void switch_scene(int, Pokemon* = nullptr);
 
     // Calculate damage
-    int damage_calculation(Pokemon&, Pokemon&, Move);
+    void damage_calculation(Pokemon*, Pokemon*, Move);
+
+    // Status effect
+    void stat_change(Pokemon&, Move);
+
+    // Resetting stat changes
+    void reset_stat_changes(int);
 };
 
 #endif // GAME_H

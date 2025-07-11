@@ -19,6 +19,7 @@ public:
 
     bool is_walkable() const;
     bool is_grass() const;
+    QPointF get_coordinates() const;
 };
 
 #endif // TILESPRITE_H

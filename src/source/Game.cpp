@@ -14,6 +14,9 @@ Game::Game(int width, int height) : player(new Player(width, height)) {
 
     // There is no previous scene
     this->previous_scene = -1;
+
+    // This is just for testing the player's name.
+    this->player->set_name("Nindoge");
 }
 
 Game::~Game(){
@@ -50,7 +53,7 @@ int Game::get_previous_scene_index(){
 void Game::show(vector<Pokemon*> available_pokemon){
     // First, hide all views that were added
     for(size_t i = 0; i < this->display.size(); i++){
-        if(this->display.at(i) != nullptr && i != this-> current_scene)
+        if(this->display.at(i) != nullptr && i != this->current_scene)
             this->display.at(i)->hide_view();
     }
 
@@ -88,6 +91,7 @@ void Game::switch_scene(int current_scene, Pokemon* opponent){
 
     // If the scene to switch to is the battle scene, then also add the leading pokemon.
     else{
+        //qDebug() << "ok so far";
         // Add all pokemon to battle via the display
         this->remove_opposing_pokemon_from_battle();
         this->add_opposing_pokemon_to_battle(*opponent);
@@ -101,7 +105,7 @@ void Game::switch_scene(int current_scene, Pokemon* opponent){
         }
         this->add_player_pokemon_to_battle(first_pokemon_idx);
 
-        // TODO: Also add to the field.
+        // Also add to the field.
         this->field.load_single_battle(this->player->get_pokemon(first_pokemon_idx), opponent);
 
         // Add all the menus
@@ -126,8 +130,6 @@ void Game::switch_scene(int current_scene, Pokemon* opponent){
 }
 
 void Game::process_move(int move_idx){
-    this->field.load_ally1_move(&this->field.get_ally1_pokemon()->get_current_move(move_idx));
-
     // TODO: pass to the field, and determine moves
     if(this->field.is_single_battle()){
         // If single battle, we know the player's move.
@@ -141,7 +143,7 @@ void Game::process_move(int move_idx){
         this->display.at(this->current_scene)->add_move_order(order);
         this->display.at(this->current_scene)->show_dialog();
 
-        // TODO: create a connection to begin an attack.
+        // Create a connection to begin an attack.
         connect(this->get_current_display(), SIGNAL(perform_move()), this, SLOT(perform_move()), Qt::UniqueConnection);
     }
 }
@@ -152,17 +154,42 @@ void Game::perform_move(){
         if(this->field.get_top_move()->get_damage_class() == STATUS){
             qDebug() << "STATUS MOVE.  APPLY BUFF/DEBUFF";
 
-        }
-        else{
-            qDebug() << "DAMAGING MOVE.  DAMAGE CALCULATION TIME";
+            // Is the user the target of the move?
+            if(this->field.get_top_move()->get_target() == USER){
 
+            }
+            else{
+                if(this->field.get_top_move_type() == 1){
+                    this->stat_change(*this->field.get_opponent1_pokemon(), *this->field.get_ally1_move());
+                }
+                else{
+                    this->stat_change(*this->field.get_ally1_pokemon(), *this->field.get_opponent1_move());
+                }
+            }
+        }
+
+        else{
+            // Indicate what type (either 1 or 2)
+            // TODO: if damage is status move, then apply it differently than regular dmg calculation.
+            if(this->field.get_top_move_type() == 1){
+                this->damage_calculation(this->field.get_ally1_pokemon(), this->field.get_opponent1_pokemon(), *this->field.get_ally1_move());
+            }
+            else{
+                this->damage_calculation(this->field.get_opponent1_pokemon(), this->field.get_ally1_pokemon(), *this->field.get_opponent1_move());
+            }
+            this->display.at(this->current_scene)->update_player_pokemon(*this->field.get_ally1_pokemon());
+            this->display.at(this->current_scene)->update_opponent_pokemon(*this->field.get_opponent1_pokemon());
         }
 
     }
 
 
     // After processing current move, get rid of it from the top
-    this->field.remove_top_move();
+    if(this->field.num_moves_left_order() > 0){
+        this->field.remove_top_move();
+        qDebug() << "# of moves left:" << this->field.num_moves_left_order();
+    }
+
 }
 
 void Game::add_player_pokemon_to_battle(int pokemon_id){
@@ -187,7 +214,9 @@ void Game::add_opposing_pokemon_to_battle(Pokemon pokemon){
 void Game::remove_opposing_pokemon_from_battle(){
     // Remove the opponent pokemon previously here, if it is there.
     if(this->display.at(0)->get_opponent_pokemon().get_dex_id() > -1){
+        qDebug() << "Looking good so far...";
         this->display.at(0)->remove_opponent_pokemon_from_battle();
+        qDebug() << "PASS";
     }
 }
 
@@ -206,14 +235,29 @@ double Game::calculate_type_matchup(Type user, Type opponent){
  * @param move - "move" that was used
  * @return int - a floored calculation taken from https://bulbapedia.bulbagarden.net/wiki/Damage#Damage_calculation
  */
-int Game::damage_calculation(Pokemon& user, Pokemon& opponent, Move move){
+void Game::damage_calculation(Pokemon* user, Pokemon* opponent, Move move){
+    // TODO: check for accuracy first
+    double accuracy_stage_modifier = user->get_modifier(ACCURACY) - opponent->get_modifier(EVASION);
+    if(accuracy_stage_modifier == 0.)
+        accuracy_stage_modifier = 1.;
+    int low = 1, high = (int)floor(move.get_accuracy() * accuracy_stage_modifier);
+    int r = QRandomGenerator::global()->bounded(1, 101);
+
+    if(!(low <= r && r <= high)){
+        QQueue<QString> battle_dialogs;
+        battle_dialogs.enqueue("But the attack missed!");
+        this->display.at(this->current_scene)->add_battle_dialogs(battle_dialogs);
+        return;
+    }
+
+
     double base = 0;
     if(move.get_damage_class() == PHYSICAL)
-        base = (((2 * user.get_level() / 5.) + 2) * move.get_power() * (user.get_total(ATK)*1.0/opponent.get_total(DEF)) / 50.) + 2;
+        base = (((2 * user->get_level() / 5.) + 2) * move.get_power() * (user->get_total(ATK)*1.0/opponent->get_total(DEF)) / 50.) + 2;
     else if(move.get_damage_class() == SPECIAL)
-        base = (((2 * user.get_level() / 5.) + 2) * move.get_power() * (user.get_total(SP_ATK)*1.0/opponent.get_total(SP_DEF)) / 50.) + 2;
+        base = (((2 * user->get_level() / 5.) + 2) * move.get_power() * (user->get_total(SP_ATK)*1.0/opponent->get_total(SP_DEF)) / 50.) + 2;
     else
-        base = 0;
+        return;
 
     // For now, can assume target is always 1 since currently working on single battle.
     // Change once double battles are implemented
@@ -235,23 +279,23 @@ int Game::damage_calculation(Pokemon& user, Pokemon& opponent, Move move){
     double random = QRandomGenerator::global()->bounded(85, 101) / 100.;
 
     // STAB: if the move used matches one of the pokemon's types, then 1.5; otherwise 1.
-    double stab = (user.is_move_stab(move.get_type()) ? 1.5 : 1);
+    double stab = (user->is_move_stab(move.get_type()) ? 1.5 : 1);
 
     // Determine type matchup vs opposing pokemon
     double type_effectiveness = 1;
-    for(size_t i = 0; i < opponent.get_types().size(); i++){
-        type_effectiveness *= this->calculate_type_matchup(move.get_type(), opponent.get_types().at(i));
+    for(size_t i = 0; i < opponent->get_types().size(); i++){
+        type_effectiveness *= this->calculate_type_matchup(move.get_type(), opponent->get_types().at(i));
     }
 
     // Burn: if the user's status is Burn, a physical attack was used, and the attack was not Facade, then multiplier is 0.5
     // 1 otherwise.
-    double burn = (user.get_status_ailment() == BURN && move.get_damage_class() == PHYSICAL && move.get_id() != 263) ? 0.5 : 1.;
+    double burn = (user->get_status_ailment() == BURN && move.get_damage_class() == PHYSICAL && move.get_id() != 263) ? 0.5 : 1.;
 
     // TODO: other, Z Moves.
     // Other:
 
     // Display a message if there was super effective damage or if there was a crit
-    qDebug() << user.get_name() << "used" << move.get_name();
+    qDebug() << user->get_name() << "used" << move.get_name();
     if(type_effectiveness > 1)
         qDebug() << "Super effective!";
     else if(type_effectiveness < 1)
@@ -262,10 +306,114 @@ int Game::damage_calculation(Pokemon& user, Pokemon& opponent, Move move){
     int total_damage = (int)floor(base * target * PB * weather * GR * critical * random * stab * type_effectiveness * burn);
     if(total_damage <= 0)
         total_damage = 1;
-    if(opponent.get_current_hp() > total_damage)
-        qDebug() << opponent.get_name() << "has" << (opponent.get_current_hp() - total_damage) << "left!";
+    if(opponent->get_current_hp() > total_damage)
+        qDebug() << opponent->get_name() << "has" << (opponent->get_current_hp() - total_damage) << "HP left!";
     else
-        qDebug() << opponent.get_name() << "fainted!";
+        qDebug() << opponent->get_name() << "fainted!";
 
-    return total_damage;
+    // Add messages to display
+    QQueue<QString> battle_dialogs;
+    if(type_effectiveness > 1)
+        battle_dialogs.enqueue("Super effective!");
+    else if(type_effectiveness < 1)
+        battle_dialogs.enqueue("Not very effective...");
+    else if(type_effectiveness == 0)
+        battle_dialogs.enqueue("But it had no effect...");
+    if(critical > 1)
+        battle_dialogs.enqueue("A critical hit!");
+    if(opponent->get_current_hp() <= total_damage){
+        battle_dialogs.enqueue(opponent->get_name() + " fainted!");
+
+    }
+
+    opponent->taken_damage(total_damage);
+
+    // Did the player lose all of their pokemon in battle?
+    if(this->player->has_all_pokemon_fainted()){
+        battle_dialogs.enqueue(this->player->get_name() + " has run out of usable Pokemon.");
+        battle_dialogs.enqueue(this->player->get_name() + " whited out...");
+    }
+
+    this->display.at(this->current_scene)->add_battle_dialogs(battle_dialogs);
 }
+
+void Game::apply_stat_change_at(Pokemon& pokemon, Move move, Stat stat, QQueue<QString>& battle_dialogs){
+    // Increase by (at least) 2 = "{stat} SHARPLY ROSE"
+    if(move.get_stat_change_at(stat) >= 2){
+        if(pokemon.can_change_modifier(stat, move.get_stat_change_at(stat))){
+            pokemon.change_modifier(stat, move.get_stat_change_at(stat));
+            battle_dialogs.enqueue(pokemon.get_name() + "'s " + stat_to_string(stat) + " sharply rose!");
+            return;
+        }
+    }
+    // Increase by 1 = "{stat} ROSE"
+    if(move.get_stat_change_at(stat) >= 1){
+        if(pokemon.can_change_modifier(stat, 1)){
+            pokemon.change_modifier(stat, 1);
+            battle_dialogs.enqueue(pokemon.get_name() + "'s " + stat_to_string(stat) + " rose!");
+            return;
+        }
+        // Here, stat can no longer be raised/dropped
+        battle_dialogs.enqueue("But " + pokemon.get_name() + "'s " + stat_to_string(stat) + " cannot go any higher...");
+    }
+    // Decrease by at least 2 = "{stat} sharply fell"
+    if(move.get_stat_change_at(stat) <= -2){
+        if(pokemon.can_change_modifier(stat, move.get_stat_change_at(stat))){
+            pokemon.change_modifier(stat, move.get_stat_change_at(stat));
+            battle_dialogs.enqueue(pokemon.get_name() + "'s " + stat_to_string(stat) + " sharply fell...");
+            pokemon.print_battle_stats();
+            return;
+        }
+    }
+    // DECREASE by 1 = "{stat} FELL"
+    if(move.get_stat_change_at(stat) <= -1){
+        if(pokemon.can_change_modifier(stat, -1)){
+            qDebug() << "TARGET";
+            pokemon.change_modifier(stat, -1);
+            battle_dialogs.enqueue(pokemon.get_name() + "'s " + stat_to_string(stat) + " fell...");
+            pokemon.print_battle_stats();
+            return;
+        }
+        // Here, stat can no longer be raised/dropped
+        battle_dialogs.enqueue("But " + pokemon.get_name() + "'s " + stat_to_string(stat) + " cannot go any lower...");
+    }
+
+
+
+}
+
+/**
+ * @brief Given a pokemon, apply a stat change to it.
+ * @param Pokemon - the pokemon being affected
+ * @param Move - the move to apply the stat changes on
+ */
+void Game::stat_change(Pokemon& pokemon, Move move){
+    // Add messages to display
+    QQueue<QString> battle_dialogs;
+
+    // First, determine probability
+    int low = 1, high = move.get_accuracy();
+    int random = QRandomGenerator::global()->bounded(low, 101); // between 1 and 100
+
+    // Then, if the randomly generated number is between the low and high boundaries, then apply stat changes
+    if(low <= random && random <= high){
+        this->apply_stat_change_at(pokemon, move, ATK, battle_dialogs);
+        this->apply_stat_change_at(pokemon, move, DEF, battle_dialogs);
+        this->apply_stat_change_at(pokemon, move, SP_ATK, battle_dialogs);
+        this->apply_stat_change_at(pokemon, move, SP_DEF, battle_dialogs);
+        this->apply_stat_change_at(pokemon, move, SPEED, battle_dialogs);
+        this->apply_stat_change_at(pokemon, move, ACCURACY, battle_dialogs);
+        this->apply_stat_change_at(pokemon, move, EVASION, battle_dialogs);
+
+        this->display.at(this->current_scene)->add_battle_dialogs(battle_dialogs);
+    }
+}
+
+/**
+ * @brief For the player's given pokemon by index, reset their stat changes.
+ * @param idx
+ */
+void Game::reset_stat_changes(int idx){
+    this->player->reset_stage_modifiers(idx);
+}
+

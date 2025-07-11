@@ -47,7 +47,11 @@ void MainProcessor::run_game(){
     //this->game.add_to_party()
 
     // connection to determine wild pokemon
-    connect(this->game.get_player_sprite(), SIGNAL(post_move()), this, SLOT(check_wild_pokemon()), Qt::UniqueConnection);
+    // and to also determine if we need to switch scenes or not.
+    this->connect(this->game.get_player_sprite(), SIGNAL(post_move()), this, SLOT(check_wild_pokemon()), Qt::UniqueConnection);
+
+    // connection to determine when to switch scenes
+    //this->connect(this->game.get_player_sprite(), SIGNAL(post_move()), this, SLOT(check_to_switch_scene()), Qt::UniqueConnection);
 }
 
 vector<Pokemon*> MainProcessor::generate_available_pokemon(){
@@ -75,6 +79,8 @@ void MainProcessor::check_wild_pokemon(){
     QList<QGraphicsItem*> collision = this->game.get_player_sprite()->collidingItems();
     for(size_t i = 0; i < collision.size(); i++){
         auto& item = *collision[i];
+
+        // If we're in the grass, see if we encounter a wild pokemon here.
         if(typeid(item) == typeid(TileSprite) && qgraphicsitem_cast<TileSprite*>(collision[i])->is_grass()){
             // 5% chance to encounter a wild pokemon
             int chance = QRandomGenerator::global()->bounded(1, 101);
@@ -96,12 +102,20 @@ void MainProcessor::check_wild_pokemon(){
             }
             break;
         }
+        /*else if(typeid(item) == typeid(TileSprite) && ){
+
+        }*/
     }
 }
 
 void MainProcessor::return_to_scene(){
     // Upon this slot's invocation, return to the previous scene stored by the game.
     this->game.switch_scene(this->game.get_previous_scene_index());
+
+    // Reset stage changes for the player.
+    for(size_t i = 0; i < this->game.get_player()->get_num_pokemon(); i++)
+        this->game.reset_stat_changes(i);
+
 
     connect(this->game.get_player_sprite(), SIGNAL(post_move()), this, SLOT(check_wild_pokemon()), Qt::UniqueConnection);
 }

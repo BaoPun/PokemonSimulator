@@ -78,3 +78,7 @@ bool TileSprite::is_walkable() const{
 bool TileSprite::is_grass() const{
     return this->grass;
 }
+
+QPointF TileSprite::get_coordinates() const{
+    return this->pos();
+}

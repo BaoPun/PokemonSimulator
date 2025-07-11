@@ -109,6 +109,20 @@ QString damage_class_to_string(DamageClass damage_class){
     }
 }
 
+QString stat_to_string(Stat stat){
+    switch(stat){
+    case HP:        return "HP";
+    case ATK:       return "Attack";
+    case DEF:       return "Defense";
+    case SP_ATK:    return "Special Attack";
+    case SP_DEF:    return "Special Defense";
+    case SPEED:     return "Speed";
+    case ACCURACY:  return "Accuracy";
+    case EVASION:   return "Evasiveness";
+    default:        return "ERROR";
+    }
+}
+
 /**
  * @brief If a move were to be called via default, then it is automatically an invalid move.
  */
@@ -246,7 +260,7 @@ int Move::get_flinch(){
     return this->flinch;
 }
 
-int Move::get_stat_change(){
+int Move::get_stat_change_chance(){
     return this->stat_change_chance;
 }
 

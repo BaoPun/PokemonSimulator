@@ -49,6 +49,7 @@ Method convert_to_method(QString);
 
 // Helper functions to convert from given enum to String
 QString damage_class_to_string(DamageClass);
+QString stat_to_string(Stat);
 
 
 
@@ -84,8 +85,6 @@ private:
     int level_learned;
 
 
-
-
 public:
     Move();
     Move(QSqlRecord);
@@ -110,7 +109,7 @@ public:
     int get_crit_bonus();
     int get_drain();
     int get_flinch();
-    int get_stat_change();
+    int get_stat_change_chance();
     int get_min_hits();
     int get_max_hits();
     int get_min_turns();

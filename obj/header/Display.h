@@ -6,14 +6,15 @@
 #include "./TextButton.h"
 #include "./TileSprite.h"
 #include  "../../entity/header/Field.h"
+#include "./HealthBar.h"
 #include <QGraphicsScene>
 #include <QGraphicsView>
 #include <QMediaPlayer>
 #include <QAudioOutput>
 #include <QKeyEvent>
 #include <QQueue>
-
-
+#include <QProgressBar>
+#include <QGraphicsProxyWidget>
 
 class Display : public QObject
 {
@@ -40,7 +41,9 @@ private:
     bool is_battle_scene;
     Pokemon player_pokemon, opponent_pokemon;
     TileSprite *player_pokemon_sprite, *opponent_pokemon_sprite;
-    vector<PokemonUsedMove> move_order;
+    //QGraphicsProxyWidget* player_hp, *opponent_hp;
+    HealthBar* player_hp, *opponent_hp;
+    //vector<PokemonUsedMove> move_order;
 
     // Setup methods are private
     void set_background_music(QString);
@@ -111,8 +114,13 @@ public:
 
     // Dialog specific functions
     void add_dialogs(QQueue<QString>);
+    void add_battle_dialogs(QQueue<QString>);
     void remove_dialog();
     void show_dialog();
+
+    // Update pokemon
+    void update_player_pokemon(Pokemon);
+    void update_opponent_pokemon(Pokemon);
 
     // Add the move order to the field
     void add_move_order(vector<PokemonUsedMove>);
