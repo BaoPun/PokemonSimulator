@@ -1,6 +1,3 @@
-resources.qrc
 CMakeLists.txt.user
 *Utility.h
 build/
-Sounds/
-Sprites/

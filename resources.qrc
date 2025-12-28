@@ -1,0 +1,20 @@
+<RCC>
+    <qresource prefix="/sounds">
+        <file>Sounds/lofi_background.wav</file>
+    </qresource>
+    <qresource prefix="/graphics">
+        <file>Sprites/GROUND DETAIL 1 - DAY.png</file>
+        <file>Sprites/HOUSE 2 - DAY.png</file>
+        <file>Sprites/FENCE 2 - DAY.png</file>
+        <file>Sprites/GRASS DETAIL 3 - DAY.png</file>
+        <file>Sprites/GROUND TILE - NIGHT.png</file>
+        <file>Sprites/WATER TILE - NIGHT.png</file>
+        <file>Sprites/BRIDGE - DAY.png</file>
+        <file>Sprites/TREE 3 - DAY.png</file>
+        <file>Sprites/TERRAIN SET 2 - DAY.png</file>
+        <file>Sprites/TERRAIN SET 3 - DAY.png</file>
+        <file>Sprites/TERRAIN SET 3 CURVES - DAY.png</file>
+        <file>Sprites/TERRAIN SET 5 - DAY.png</file>
+        <file>Sprites/idle.png</file>
+    </qresource>
+</RCC>
