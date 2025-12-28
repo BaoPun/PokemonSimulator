@@ -145,6 +145,9 @@ void Game::process_move(int move_idx){
 
         // Create a connection to begin an attack.
         connect(this->get_current_display(), SIGNAL(perform_move()), this, SLOT(perform_move()), Qt::UniqueConnection);
+
+        // Create another connection to implement EXP gains after defeating opposing pokemon
+        connect(this->get_current_display(), SIGNAL(gain_exp()), this, SLOT(gain_exp()), Qt::UniqueConnection);
     }
 }
 
@@ -192,6 +195,24 @@ void Game::perform_move(){
 
 }
 
+// After KO'ing a wild pokemon, gain experience for it.
+void Game::gain_exp(){
+    // Add messages to display
+    QQueue<QString> battle_dialogs;
+
+    // Call from current pokemon to opposing pokemon
+    int exp_gained = this->player->get_pokemon(0)->gain_experience(this->display.at(this->current_scene)->get_opponent_pokemon(), battle_dialogs);
+
+    // Add a message displaying the total exp gained after defeating wild pokemon
+    if(exp_gained > 0){
+        // Prepend = add to head of queue
+        battle_dialogs.prepend("You have earned " + QString::fromStdString(std::to_string(exp_gained)) + " exp.");
+
+        // And add to the display
+        this->display.at(this->current_scene)->add_battle_dialogs(battle_dialogs);
+    }
+}
+
 void Game::add_player_pokemon_to_battle(int pokemon_id){
     if(this->player->get_num_pokemon() > 0 && pokemon_id >= 0 && pokemon_id < this->player->get_num_pokemon()){
         this->display.at(0)->send_player_pokemon_to_battle(*this->player->get_pokemon(pokemon_id));
@@ -236,11 +257,15 @@ double Game::calculate_type_matchup(Type user, Type opponent){
  * @return int - a floored calculation taken from https://bulbapedia.bulbagarden.net/wiki/Damage#Damage_calculation
  */
 void Game::damage_calculation(Pokemon* user, Pokemon* opponent, Move move){
-    // TODO: check for accuracy first
-    double accuracy_stage_modifier = user->get_modifier(ACCURACY) - opponent->get_modifier(EVASION);
-    if(accuracy_stage_modifier == 0.)
-        accuracy_stage_modifier = 1.;
-    int low = 1, high = (int)floor(move.get_accuracy() * accuracy_stage_modifier);
+    // Check for accuracy first: accuracy of the move, accuracy stage of the user, evasion of the opponent
+    double accuracy_stage_modifier = move.get_accuracy() * user->get_modifier(ACCURACY) * opponent->get_modifier(EVASION);
+
+    // DEBUG: when accuracy drops, this always misses for some reason
+    qDebug() << "Move accuracy: " << move.get_accuracy();
+    qDebug() << "Accuracy of user: " << user->get_modifier(ACCURACY);
+    qDebug() << "Evasion of opponent: " << opponent->get_modifier(EVASION);
+
+    int low = 1, high = (int)floor(accuracy_stage_modifier);
     int r = QRandomGenerator::global()->bounded(1, 101);
 
     if(!(low <= r && r <= high)){

@@ -247,13 +247,7 @@ void Display::send_player_pokemon_to_battle(Pokemon pokemon){
     this->player_pokemon_sprite = new TileSprite(-1, 176, 448, QString("./PokemonHomeImages/%1.png").arg(pokemon.get_dex_id()), 144, 144);
     this->add_to_scene(this->player_pokemon_sprite);
 
-    // TODO: add health bar above the sprite (QProgressBar)
-    /*QProgressBar* health_bar = new QProgressBar();
-    health_bar->setMaximum(this->player_pokemon.get_total(HP));
-    health_bar->setValue(this->player_pokemon.get_current_hp());
-    this->player_hp = new QGraphicsProxyWidget();
-    this->player_hp->setWidget(health_bar);
-    this->player_hp->setPos(176, 416);*/
+    // Add health bar above the sprite (QProgressBar)
     this->player_hp = new HealthBar(this->player_pokemon.get_current_hp(), this->player_pokemon.get_total(HP), 176, 416);
     this->add_to_scene(this->player_hp->get_proxy());
 }
@@ -264,9 +258,12 @@ void Display::send_opponent_pokemon_to_battle(Pokemon pokemon){
     this->opponent_pokemon_sprite = new TileSprite(-1, 576, 160, QString("./PokemonHomeImages/%1.png").arg(pokemon.get_dex_id()), 144, 144);
     this->add_to_scene(this->opponent_pokemon_sprite);
 
-    // TODO: add health bar above the sprite (QProgressBar)
+    // Add health bar above the sprite (QProgressBar)
     this->opponent_hp = new HealthBar(this->opponent_pokemon.get_current_hp(), this->opponent_pokemon.get_total(HP), 576, 128);
     this->add_to_scene(this->opponent_hp->get_proxy());
+
+    // TODO: add name of opposing pokemon on top of the health bar
+
 }
 
 void Display::remove_player_pokemon_from_battle(){
@@ -402,10 +399,12 @@ void Display::add_move_order(vector<PokemonUsedMove> move_order){
 bool Display::eventFilter(QObject* object, QEvent* event){
     if(event->type() == QEvent::KeyPress){
         QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+        // Close the program when CTRL + Q hotkey is pressed
         if(keyEvent->key() == Qt::Key_Q && (keyEvent->modifiers() & Qt::ControlModifier)){
             this->view->close();
             return true;
         }
+        // Pause/play the background music when P is pressed
         else if(keyEvent->key() == Qt::Key_P){
             if(this->background_music->isPlaying())
                 this->background_music->pause();
@@ -413,6 +412,7 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                 this->background_music->play();
             return true;
         }
+        // Battle interactions
         else if(this->is_battle()){
             if(keyEvent->key() == Qt::Key_Return || keyEvent->key() == Qt::Key_Space){
                 // Priority over any and all dialog boxes
@@ -428,17 +428,19 @@ bool Display::eventFilter(QObject* object, QEvent* event){
 
                     // Did a pokemon faint?
                     if(text.contains(" fainted!")){
-                        // TODO: before exiting the battle, implement exp gains
+                        // If an opponent's pokemon (or wild) faints, give exp
+                        if(this->opponent_pokemon.get_current_hp() <= 0){
+                            qDebug() << "Opponent has fainted.  TODO: implement exp gain.";
+                            this->dialogs.clear();
+                            Q_EMIT gain_exp();
+                        }
 
-
-
-                        // TODO: exit the battle only if the wild pokemon is gone
+                        // Exit the battle only if the wild pokemon is gone
                         //       or if the player has no more usable pokemon
-                        if(this->dialogs.empty() || this->opponent_pokemon.get_current_hp() == 0){
+                        else if(this->dialogs.empty() || this->opponent_pokemon.get_current_hp() == 0){
                             Q_EMIT exit_battle();
                             this->dialogs.clear();
-                            //return true;
-                        }
+                         }
                     }
 
 
@@ -449,23 +451,29 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                             this->is_move_action = false;
                     }
 
-                    // Show dialog boxes
+                    // If there are more dialog boxes in queue, show the next one waiting
                     if(!this->dialogs.isEmpty()){
                         this->dialogs.front()->show();
                     }
 
                     // If we chose to run away, display that prompt here.
                     else if(text == "Ran away successfully!"){
-                        //this->move_order.clear();
                         Q_EMIT exit_battle();
                         this->dialogs.clear();
 
                         // TODO: Also clear out the sprites
-
+                        // Maybe not needed, actually...
                     }
 
                     // Otherwise, show the battle menu
                     else{
+                        // If opponent is defeated, exit the battle
+                        if(this->opponent_pokemon.get_current_hp() == 0){
+                            Q_EMIT exit_battle();
+                            this->dialogs.clear();
+                            return true;
+                        }
+
                         this->show_battle_options();
                         this->set_focus_battle_button(0);
                     }
@@ -481,6 +489,20 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                         this->hide_battle_options();
                         this->show_move_selection();
                         this->set_focus_move_button(0);
+                        return true;
+                    }
+
+                    // If we pressed ENTER on the item menu, switch to the item menu
+                    // TODO: figure out how to implement this though...
+                    else if(this->battle_button[1]->is_bold()){
+                        qDebug() << "You have chosen to look at the available items";
+                        return true;
+                    }
+
+                    // If we pressed ENTER on the pokemon menu, switch to the pokemon menu
+                    // TODO: figure out how to implement this...
+                    else if(this->battle_button[2]->is_bold()){
+                        qDebug() << "You have chosen to switch pokemon";
                         return true;
                     }
 
@@ -517,6 +539,7 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                     }
                 }
             }
+            // When we click the left arrow key
             else if(keyEvent->key() == Qt::Key_Left){
                 // Going left on the main battle menu
                 if(this->dialogs.isEmpty() && !this->battle_menu_shown && !this->item_menu_shown && !this->pokemon_menu_shown){
@@ -544,6 +567,7 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                 }
                 return true;
             }
+            // When we click the right arrow key
             else if(keyEvent->key() == Qt::Key_Right){
                 if(this->dialogs.isEmpty() && !this->battle_menu_shown && !this->item_menu_shown && !this->pokemon_menu_shown){
                     if(this->battle_button[0]->is_bold()){
@@ -567,6 +591,7 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                 }
                 return true;
             }
+            // When we click the up arrow key
             else if(keyEvent->key() == Qt::Key_Up){
                 if(this->dialogs.isEmpty() && !this->battle_menu_shown && !this->item_menu_shown && !this->pokemon_menu_shown){
                     if(this->battle_button[2]->is_bold()){
@@ -589,6 +614,7 @@ bool Display::eventFilter(QObject* object, QEvent* event){
                     }
                 }
             }
+            // When we click the down arrow key
             else if(keyEvent->key() == Qt::Key_Down){
                 if(this->dialogs.isEmpty() && !this->battle_menu_shown && !this->item_menu_shown && !this->pokemon_menu_shown){
                     if(this->battle_button[0]->is_bold()){

@@ -36,6 +36,7 @@ private:
 private slots:
     void process_move(int);
     void perform_move();
+    void gain_exp();
 
 public:
     Game(int, int);

@@ -96,16 +96,13 @@ void Game::create_scene_battle(int width, int height){
     // Add new display (no min/max levels needed)
     this->display[0] = new Display(width, height, -1, -1, "lofi_background.wav", true);
 
-    // Add the lead party pokemon to the screen, but scale it down to 128x128
-    //this->player.add_pokemon(*this->pokemon.find(252)->second);
-    //if(this->player.get_num_pokemon() > 0)
-    //    this->display.at(0)->add_to_scene(new TileSprite(-1, 144, 448, QString("./PokemonHomeImages/%1.png").arg(this->player.get_pokemon(0)->get_dex_id()), 144, 144));
-
-    // And then mark as true
+    // Battle scene created
     this->battle_scene_created = true;
+
+    // TODO: choosing the pokemon option should bring up the list of pokemon
+    // Create window, add it to the display, but keep its visibility hidden
 
 
     // Add event filter on this display
     //this->display.at(0)->installEventFilter(this);
 }
-

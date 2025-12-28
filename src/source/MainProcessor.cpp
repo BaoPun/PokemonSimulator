@@ -54,6 +54,10 @@ void MainProcessor::run_game(){
     //this->connect(this->game.get_player_sprite(), SIGNAL(post_move()), this, SLOT(check_to_switch_scene()), Qt::UniqueConnection);
 }
 
+/**
+ * @brief This function generates wild pokemon available in all scenes.  Update as we progress through more scenes
+ * @return
+ */
 vector<Pokemon*> MainProcessor::generate_available_pokemon(){
     vector<Pokemon*> pokemon_in_scene;
     switch(this->game.get_current_display_index()){
@@ -63,17 +67,19 @@ vector<Pokemon*> MainProcessor::generate_available_pokemon(){
         pokemon_in_scene.push_back(this->pokemon[280]->repopulate_data(2, 280, database));    // Ralts
         pokemon_in_scene.push_back(this->pokemon[821]->repopulate_data(10, 821, database));    // Rookidee
         pokemon_in_scene.push_back(this->pokemon[403]->repopulate_data(20, 403, database));    // Shinx
-        pokemon_in_scene.push_back(this->pokemon[56]->repopulate_data(10, 56, database));     // Mankey
+        pokemon_in_scene.push_back(this->pokemon[551]->repopulate_data(15, 551, database));     // Sandile
         pokemon_in_scene.push_back(this->pokemon[661]->repopulate_data(8, 661, database));    // Fletchling
         pokemon_in_scene.push_back(this->pokemon[194]->repopulate_data(15, 194, database));    // Wooper
         pokemon_in_scene.push_back(this->pokemon[919]->repopulate_data(15, 919, database));  // Nymble
-        pokemon_in_scene.push_back(this->pokemon[917]->repopulate_data(20, 917, database));    // Tarountula
+        pokemon_in_scene.push_back(this->pokemon[960]->repopulate_data(15, 960, database));    // Wiglett
     case 2:
         break;
     }
     return pokemon_in_scene;
 }
 
+// Function to check if we encountered a wild pokemon after moving
+// After encountering wild pokemon, this function will look for a signal to exit the battle
 void MainProcessor::check_wild_pokemon(){
     // If the player is on the grass, allow a 5% chance to encounter a wild pokmeon
     QList<QGraphicsItem*> collision = this->game.get_player_sprite()->collidingItems();

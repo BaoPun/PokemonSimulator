@@ -14,11 +14,6 @@ HealthBar::~HealthBar(){
         delete this->proxy;
         this->proxy = nullptr;
     }
-    /*if(this->health_bar != nullptr){
-        delete this->health_bar;
-        this->health_bar = nullptr;
-    } qDebug() << "Health bar gone.";*/
-
 }
 
 void HealthBar::set_current_hp(int current_hp){

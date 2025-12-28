@@ -9,6 +9,7 @@
 
 #include <QDebug>
 #include <QRandomGenerator>
+#include <QQueue>
 
 /**
  * @brief A generic Pokemon class with various characteristics:
@@ -104,15 +105,15 @@ public:
 
 
     // Getters
-    int get_dex_id();
+    int get_dex_id() const;
     QString get_name();
-    int get_level();
-    int get_base_exp();
-    int get_base(Stat);
-    int get_yield(Stat);
-    int get_ev(Stat);
-    int get_iv(Stat);
-    int get_total(Stat);
+    int get_level() const;
+    int get_base_exp() const;
+    int get_base(Stat) ;
+    int get_yield(Stat) const;
+    int get_ev(Stat) ;
+    int get_iv(Stat) ;
+    int get_total(Stat) ;
     int get_num_moves_learned_by(Method);   // number of moves learned via a given method
     int get_probability();
     double get_modifier(Stat);
@@ -123,6 +124,7 @@ public:
     int get_num_current_moves();
     vector<Move> get_current_moves();
     bool is_owned_by_trainer();
+    bool has_available_evs(Stat) const;
 
 
     // When encountering a pokemon from the wild or as a gift, change the level.
@@ -145,7 +147,7 @@ public:
     void invalidate_pokemon();
 
     // Gain experience
-    void gain_experience(const Pokemon &);
+    int gain_experience(const Pokemon &, QQueue<QString>&);
 
     // DEBUG: print stats of pokemon to make sure data came through just fine.
     void print_total_stats();

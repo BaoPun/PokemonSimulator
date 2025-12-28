@@ -130,7 +130,7 @@ void Pokemon::add_learnable_move(QSqlRecord record){
     }
 }
 
-int Pokemon::get_dex_id(){
+int Pokemon::get_dex_id() const{
     return this->dex_id;
 }
 
@@ -138,11 +138,11 @@ QString Pokemon::get_name(){
     return this->name;
 }
 
-int Pokemon::get_level(){
+int Pokemon::get_level() const{
     return this->level;
 }
 
-int Pokemon::get_base_exp(){
+int Pokemon::get_base_exp() const{
     return this->base_EXP;
 }
 
@@ -150,8 +150,8 @@ int Pokemon::get_base(Stat stat){
     return this->base[stat];
 }
 
-int Pokemon::get_yield(Stat stat){
-    return this->yield[stat];
+int Pokemon::get_yield(Stat stat) const{
+    return this->yield.at(stat);
 }
 
 int Pokemon::get_ev(Stat stat){
@@ -181,6 +181,13 @@ int Pokemon::get_num_moves_learned_by(Method method){
     }
 }
 
+/**
+ * @brief Makes pokemon with given nat dex id a wild pokemon with a "probability" (out of 100)
+ * @param probability - probability (out of 100) that the pokemon will appear
+ * @param id - national dex id
+ * @param database - database query to fetch this pokemon
+ * @return
+ */
 Pokemon* Pokemon::repopulate_data(int probability, int id, Database* database){
     this->update_probability(probability);
     this->set_learnable_moves(id, database);
@@ -328,6 +335,11 @@ bool Pokemon::is_move_stab(Type type){
     return false;
 }
 
+// Helper function: do we have any evs remaining?
+bool Pokemon::has_available_evs(Stat stat) const{
+    return this->ev.at(stat) < 255 && this->ev.at(HP) + this->ev.at(ATK) + this->ev.at(DEF) + this->ev.at(SP_ATK) + this->ev.at(SP_DEF) + this->ev.at(SPEED) < 510;
+}
+
 void Pokemon::taken_damage(int damage){
     if(damage >= this->current_hp)
         this->current_hp = 0;
@@ -344,8 +356,68 @@ void Pokemon::invalidate_pokemon(){
  * @brief https://bulbapedia.bulbagarden.net/wiki/Experience
  * @param defeated
  */
-void Pokemon::gain_experience(const Pokemon& defeated){
+int Pokemon::gain_experience(const Pokemon& defeated, QQueue<QString>& battle_dialogs){
+    // ((b*L/5) * (1/s) * exp( (2L+10)/(L+Lp+10) , 2.5) + 1) * t*e*v*f*p
+    // If we're level 100, then don't do anything...
+    if(this->level == 100)
+        return 0;
 
+    // Otherwise, implement formula
+    int total_exp_gain = 0;
+
+    // Three components together
+    float bL = (this->level * defeated.get_level()) / 5.;
+    float invS = 1 / 1; // 1/s => s = {1 if pokemon participated in battle, 2 if pokemon did not participate in battle and exp share is active)
+    float exponent = qPow((2*defeated.get_level() + 10.) / (defeated.get_level() + this->level + 10.), 2.5);
+    float component_1 = bL * invS * exponent;
+
+    qDebug() << this->level << defeated.get_level();
+    qDebug() << bL << invS << exponent;
+
+    // The rest: t*e*v*f*p
+    float t = 1;
+    float e = 1;
+    float v = 1;
+    float f = 1;
+    float p = 1;
+
+    // Combine components together via multiplication, and then truncate afterwards
+    total_exp_gain += component_1 * t * e * v * f * p;
+
+    // Increase current exp by total exp gain
+    this->current_exp += total_exp_gain;
+
+    // Implement ev gains for all 6 stats.
+    // Same formula; just change for specific stat as needed
+    if(this->has_available_evs(HP)){
+        this->ev[HP] = (this->ev[HP] + defeated.get_yield(HP)) > 255 ? 255 : (this->ev[HP] + defeated.get_yield(HP));
+    }
+    if(this->has_available_evs(ATK)){
+        this->ev[ATK] = (this->ev[ATK] + defeated.get_yield(ATK)) > 255 ? 255 : (this->ev[ATK] + defeated.get_yield(ATK));
+    }
+    if(this->has_available_evs(DEF)){
+        this->ev[DEF] = (this->ev[DEF] + defeated.get_yield(DEF)) > 255 ? 255 : (this->ev[DEF] + defeated.get_yield(DEF));
+    }
+    if(this->has_available_evs(SP_ATK)){
+        this->ev[SP_ATK] = (this->ev[SP_ATK] + defeated.get_yield(SP_ATK)) > 255 ? 255 : (this->ev[SP_ATK] + defeated.get_yield(SP_ATK));
+    }
+    if(this->has_available_evs(SP_DEF)){
+        this->ev[SP_DEF] = (this->ev[SP_DEF] + defeated.get_yield(SP_DEF)) > 255 ? 255 : (this->ev[SP_DEF] + defeated.get_yield(SP_DEF));
+    }
+    if(this->has_available_evs(SPEED)){
+        this->ev[SPEED] = (this->ev[SPEED] + defeated.get_yield(SPEED)) > 255 ? 255 : (this->ev[SPEED] + defeated.get_yield(SPEED));
+    }
+
+    // Determine if we have leveled up
+    if(this->current_exp >= this->exp_gains[this->level]){
+        battle_dialogs.append("Gained a level.  You are now level " + QString::fromStdString(std::to_string(++this->level)));
+    }
+
+    // Update base stats
+    this->calculate_total_stats();
+
+    // Return the total amount of exp gained
+    return total_exp_gain;
 }
 
 void Pokemon::print_total_stats(){
@@ -402,12 +474,12 @@ void Pokemon::print_battle_stats(){
 
 
     // Stats
-    qDebug() << "     HP:" << this->get_total(HP);
-    qDebug() << "    ATK:" << this->get_total(ATK) << "+" << this->modifier[ATK];
-    qDebug() << "    DEF:" << this->get_total(DEF) << "+" << this->modifier[DEF];
-    qDebug() << "  SPATK:" << this->get_total(SP_ATK) << "+" << this->modifier[SP_ATK];
-    qDebug() << "  SPDEF:" << this->get_total(SP_DEF) << "+" << this->modifier[SP_DEF];
-    qDebug() << "    SPD:" << this->get_total(SPEED) << "+" << this->modifier[SPEED];
+    qDebug() << "     HP:" << this->get_total(HP) << "+" << this->ev[HP] << "evs";
+    qDebug() << "    ATK:" << this->get_total(ATK) << "+" << this->ev[ATK] << "evs";
+    qDebug() << "    DEF:" << this->get_total(DEF) << "+" << this->ev[DEF] << "evs";
+    qDebug() << "  SPATK:" << this->get_total(SP_ATK) << "+" << this->ev[SP_ATK] << "evs";
+    qDebug() << "  SPDEF:" << this->get_total(SP_DEF) << "+" << this->ev[SP_DEF] << "evs";
+    qDebug() << "    SPD:" << this->get_total(SPEED) << "+" << this->ev[SPEED] << "evs";
     qDebug() << " Nature:" << this->nature.name;
     if(this->level < 100)
         qDebug() << "Curr XP:" << this->current_exp << "/" << this->exp_gains[this->level];

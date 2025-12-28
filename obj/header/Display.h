@@ -71,6 +71,7 @@ signals:
     void exit_battle();
     void chosen_move(int);
     void perform_move();
+    void gain_exp();
 
 public:
     explicit Display(int, int, int, int, QString, bool = false, QObject *parent = nullptr);
